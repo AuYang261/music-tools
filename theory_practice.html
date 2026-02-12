@@ -493,126 +493,193 @@
             harmonic: [0, 2, 3, 5, 7, 8, 11], melodic: [0, 2, 3, 5, 7, 9, 11]
         };
 
-                    let currentRoot = -1, currentTarget = -1, isWaiting = false, mainMode = 'interval';
+        let audioCtx = null;
 
-                    function updateRefByIntervals(values) {
-                        const allCols = document.querySelectorAll('.ref-table [data-interval]');
-                        allCols.forEach(el => el.classList.remove('ref-col-hidden'));
-                        const allowed = new Set((values || []).map(v => String(v)));
-                        if (!allowed.size) {
-                            allCols.forEach(el => el.classList.add('ref-col-hidden'));
-                            return;
-                        }
-                        allCols.forEach(el => {
-                            if (!allowed.has(el.getAttribute('data-interval'))) el.classList.add('ref-col-hidden');
-                        });
-                    }
+        function ensureAudio() {
+            if (!audioCtx) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) return null;
+                audioCtx = new AC();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(() => { });
+            }
+            return audioCtx;
+        }
 
-                    function init() {
-                        const grid = document.getElementById('interval-grid');
-                        intervals.forEach(item => {
-                            const checked = [3, 4, 7].includes(item.v) ? 'checked' : '';
-                            grid.innerHTML += `
-                <label class="chip" data-v="${item.v}">
-                    <input type="checkbox" name="interval" value="${item.v}" data-name="${item.n}" ${checked} onchange="nextQuestion(true)">
-                    <span class="chip-content">${item.n}</span>
-                </label>`;
-                    });
+        function noteIndexToFreq(noteIndex) {
+            return 261.6256 * Math.pow(2, noteIndex / 12);
+        }
 
-                    updateRefByIntervals([3, 4, 7]);
+        function playPianoNote(noteIndex, delay = 0) {
+            const ctx = ensureAudio();
+            if (!ctx) return;
 
-                    const piano = document.getElementById('piano-body');
-                    for (let i = 0; i < 24; i++) {
-                        const isBlack = [1, 3, 6, 8, 10].includes(i % 12);
-                        const key = document.createElement('div');
-                        key.className = `key ${isBlack ? 'black' : ''}`;
-                        const startHandler = (e) => { e.preventDefault(); handlePress(i); };
-                        key.addEventListener('mousedown', startHandler);
-                        key.addEventListener('touchstart', startHandler);
-                        piano.appendChild(key);
-                    }
+            const now = ctx.currentTime + delay;
+            const freq = noteIndexToFreq(noteIndex);
 
-                    const ks = document.getElementById('keySelect');
-                    noteNames.forEach((n, i) => ks.innerHTML += `<option value="${i}">${n} 调</option>`);
-                    ks.addEventListener('change', () => nextQuestion(true));
-                    document.getElementById('scaleTypeSelect').addEventListener('change', () => nextQuestion(true));
+            const master = ctx.createGain();
+            master.gain.setValueAtTime(0.0001, now);
+            master.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+            master.gain.exponentialRampToValueAtTime(0.05, now + 0.22);
+            master.gain.exponentialRampToValueAtTime(0.0001, now + 1.1);
 
-                    nextQuestion();
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(2800, now);
+            filter.Q.setValueAtTime(1.2, now);
+
+            const osc1 = ctx.createOscillator();
+            osc1.type = 'triangle';
+            osc1.frequency.setValueAtTime(freq, now);
+
+            const osc2 = ctx.createOscillator();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(freq * 2, now);
+
+            const mix2 = ctx.createGain();
+            mix2.gain.setValueAtTime(0.18, now);
+
+            osc1.connect(filter);
+            osc2.connect(mix2).connect(filter);
+            filter.connect(master).connect(ctx.destination);
+
+            osc1.start(now);
+            osc2.start(now);
+            osc1.stop(now + 1.15);
+            osc2.stop(now + 1.15);
+        }
+
+        function playIntervalPair(rootIndex, targetIndex) {
+            playPianoNote(rootIndex, 0);
+            playPianoNote(targetIndex, 0.22);
+        }
+
+        let currentRoot = -1, currentTarget = -1, isWaiting = false, mainMode = 'interval';
+
+        function updateRefByIntervals(values) {
+            const allCols = document.querySelectorAll('.ref-table [data-interval]');
+            allCols.forEach(el => el.classList.remove('ref-col-hidden'));
+            const allowed = new Set((values || []).map(v => String(v)));
+            if (!allowed.size) {
+                allCols.forEach(el => el.classList.add('ref-col-hidden'));
+                return;
+            }
+            allCols.forEach(el => {
+                if (!allowed.has(el.getAttribute('data-interval'))) el.classList.add('ref-col-hidden');
+            });
+        }
+
+        function init() {
+            const grid = document.getElementById('interval-grid');
+            intervals.forEach(item => {
+                const checked = [3, 4, 7].includes(item.v) ? 'checked' : '';
+                grid.innerHTML += `
+    <label class="chip" data-v="${item.v}">
+        <input type="checkbox" name="interval" value="${item.v}" data-name="${item.n}" ${checked} onchange="nextQuestion(true)">
+        <span class="chip-content">${item.n}</span>
+    </label>`;
+        });
+
+        updateRefByIntervals([3, 4, 7]);
+
+        const piano = document.getElementById('piano-body');
+        for (let i = 0; i < 24; i++) {
+            const isBlack = [1, 3, 6, 8, 10].includes(i % 12);
+            const key = document.createElement('div');
+            key.className = `key ${isBlack ? 'black' : ''}`;
+            const startHandler = (e) => { e.preventDefault(); handlePress(i); };
+            key.addEventListener('mousedown', startHandler);
+            key.addEventListener('touchstart', startHandler);
+            piano.appendChild(key);
+        }
+
+        const ks = document.getElementById('keySelect');
+        noteNames.forEach((n, i) => ks.innerHTML += `<option value="${i}">${n} 调</option>`);
+        ks.addEventListener('change', () => nextQuestion(true));
+        document.getElementById('scaleTypeSelect').addEventListener('change', () => nextQuestion(true));
+
+        nextQuestion();
+    }
+
+        function toggleRef() {
+            const panel = document.getElementById('ref-panel');
+            const btn = document.getElementById('btn-ref');
+            panel.classList.toggle('open');
+            btn.classList.toggle('active');
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => { });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+        function switchMainMode(mode) {
+            mainMode = mode;
+            document.getElementById('btn-interval').classList.toggle('active', mode === 'interval');
+            document.getElementById('btn-degree').classList.toggle('active', mode === 'degree');
+            document.getElementById('interval-panel').style.display = mode === 'interval' ? 'block' : 'none';
+            document.getElementById('key-panel').style.display = mode === 'degree' ? 'block' : 'none';
+            nextQuestion(true);
+        }
+
+        function nextQuestion(reset = false) {
+            isWaiting = false;
+            const qEl = document.getElementById('question-text');
+            document.getElementById('feedback').innerText = "";
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('target-highlight'));
+
+        if (mainMode === 'interval') {
+            const selected = Array.from(document.querySelectorAll('input[name="interval"]:checked'));
+        updateRefByIntervals(selected.map(item => parseInt(item.value)));
+            if (!selected.length) { qEl.innerText = "请至少选一个"; return; }
+            const pick = selected[Math.floor(Math.random() * selected.length)];
+            const v = parseInt(pick.value);
+            currentRoot = Math.floor(Math.random() * 12);
+            currentTarget = currentRoot + v;
+            qEl.innerText = `${noteNames[currentRoot]} 的 ${pick.getAttribute('data-name')}`;
+            document.querySelector(`.chip[data-v="${v}"]`).classList.add('target-highlight');
+        } else {
+            const base = parseInt(document.getElementById('keySelect').value);
+            const st = document.getElementById('scaleTypeSelect');
+            const deg = Math.floor(Math.random() * 7) + 1;
+            currentRoot = base;
+            currentTarget = base + patterns[st.value][deg - 1];
+            qEl.innerText = `${noteNames[base]}${st.options[st.selectedIndex].text} 第 ${deg} 级`;
+        }
+        refreshPiano();
+    }
+
+        function refreshPiano(pressedIdx = null, isCorrect = null) {
+            document.querySelectorAll('.key').forEach((key, i) => {
+                if (pressedIdx === null) key.classList.remove('root', 'correct', 'wrong');
+                if (i % 12 === currentRoot % 12) key.classList.add('root');
+                if (i === pressedIdx) key.classList.add(isCorrect ? 'correct' : 'wrong');
+            });
+        }
+
+        function handlePress(idx) {
+            if (isWaiting) return;
+            const fb = document.getElementById('feedback');
+            if (idx % 12 === currentTarget % 12) {
+                if (mainMode === 'interval') {
+                    playIntervalPair(currentRoot, currentTarget);
+                } else {
+                    playPianoNote(idx);
                 }
+                fb.innerText = "EXCELLENT"; fb.style.color = "var(--correct)";
+                refreshPiano(idx, true); isWaiting = true; setTimeout(nextQuestion, 700);
+            } else {
+                fb.innerText = "TRY AGAIN"; fb.style.color = "var(--wrong)";
+                refreshPiano(idx, false);
+            }
+        }
 
-                    function toggleRef() {
-                        const panel = document.getElementById('ref-panel');
-                        const btn = document.getElementById('btn-ref');
-                        panel.classList.toggle('open');
-                        btn.classList.toggle('active');
-                    }
-
-                    function toggleFullScreen() {
-                        if (!document.fullscreenElement) {
-                        document.documentElement.requestFullscreen().catch(() => { });
-                    } else {
-                        document.exitFullscreen();
-                    }
-                }
-
-                    function switchMainMode(mode) {
-                        mainMode = mode;
-                        document.getElementById('btn-interval').classList.toggle('active', mode === 'interval');
-                        document.getElementById('btn-degree').classList.toggle('active', mode === 'degree');
-                        document.getElementById('interval-panel').style.display = mode === 'interval' ? 'block' : 'none';
-                        document.getElementById('key-panel').style.display = mode === 'degree' ? 'block' : 'none';
-                        nextQuestion(true);
-                    }
-
-                    function nextQuestion(reset = false) {
-                        isWaiting = false;
-                        const qEl = document.getElementById('question-text');
-                        document.getElementById('feedback').innerText = "";
-                        document.querySelectorAll('.chip').forEach(c => c.classList.remove('target-highlight'));
-
-                    if (mainMode === 'interval') {
-                        const selected = Array.from(document.querySelectorAll('input[name="interval"]:checked'));
-                    updateRefByIntervals(selected.map(item => parseInt(item.value)));
-                        if (!selected.length) { qEl.innerText = "请至少选一个"; return; }
-                        const pick = selected[Math.floor(Math.random() * selected.length)];
-                        const v = parseInt(pick.value);
-                        currentRoot = Math.floor(Math.random() * 12);
-                        currentTarget = currentRoot + v;
-                        qEl.innerText = `${noteNames[currentRoot]} 的 ${pick.getAttribute('data-name')}`;
-                        document.querySelector(`.chip[data-v="${v}"]`).classList.add('target-highlight');
-                    } else {
-                        const base = parseInt(document.getElementById('keySelect').value);
-                        const st = document.getElementById('scaleTypeSelect');
-                        const deg = Math.floor(Math.random() * 7) + 1;
-                        currentRoot = base;
-                        currentTarget = base + patterns[st.value][deg - 1];
-                        qEl.innerText = `${noteNames[base]}${st.options[st.selectedIndex].text} 第 ${deg} 级`;
-                    }
-                    refreshPiano();
-                }
-
-                    function refreshPiano(pressedIdx = null, isCorrect = null) {
-                        document.querySelectorAll('.key').forEach((key, i) => {
-                            if (pressedIdx === null) key.classList.remove('root', 'correct', 'wrong');
-                            if (i % 12 === currentRoot % 12) key.classList.add('root');
-                            if (i === pressedIdx) key.classList.add(isCorrect ? 'correct' : 'wrong');
-                        });
-                    }
-
-                    function handlePress(idx) {
-                        if (isWaiting) return;
-                        const fb = document.getElementById('feedback');
-                        if (idx % 12 === currentTarget % 12) {
-                            fb.innerText = "EXCELLENT"; fb.style.color = "var(--correct)";
-                            refreshPiano(idx, true); isWaiting = true; setTimeout(nextQuestion, 700);
-                        } else {
-                            fb.innerText = "TRY AGAIN"; fb.style.color = "var(--wrong)";
-                            refreshPiano(idx, false);
-                        }
-                    }
-
-                    init();
-                </script>
+        init();
+    </script>
 </body>
 
 </html>
