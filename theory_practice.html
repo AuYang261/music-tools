@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Piano Flow | Immersive</title>
+    <title>Piano Flow</title>
     <style>
         :root {
             --bg-dark: #0a0c0e;
@@ -32,32 +32,29 @@
             overflow: hidden;
         }
 
-        /* 旋转提示遮罩 */
         #orientation-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--bg-dark); z-index: 9999;
             display: none; flex-direction: column; align-items: center; justify-content: center;
         }
-        @media (orientation: portrait) {
-            #orientation-overlay { display: flex; }
-        }
+        @media (orientation: portrait) { #orientation-overlay { display: flex; } }
 
         .container {
             width: 100%; height: 100%;
-            max-width: 1100px; max-height: 800px;
+            max-width: 1100px;
             background: var(--card-bg);
             padding: 20px;
             display: flex; flex-direction: column;
-            position: relative; transition: padding 0.3s;
+            position: relative;
         }
 
         header { 
             display: flex; justify-content: space-between; align-items: center; 
-            margin-bottom: 15px; flex-shrink: 0;
+            margin-bottom: 10px; flex-shrink: 0;
         }
         header h1 { margin: 0; font-size: 1.1rem; letter-spacing: 1px; color: var(--accent); cursor: pointer; }
         
-        .top-ctrl { display: flex; gap: 10px; align-items: center; }
+        .top-ctrl { display: flex; gap: 8px; align-items: center; }
         .fullscreen-btn {
             background: rgba(255,255,255,0.1); border: none; color: #fff;
             padding: 5px 10px; border-radius: 5px; font-size: 0.7rem; cursor: pointer;
@@ -71,10 +68,9 @@
         }
         .mode-btn.active { background: var(--accent); color: #000; box-shadow: 0 0 10px var(--accent-glow); }
 
-        /* 选项区域 */
         .chip-grid { 
             display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); 
-            gap: 8px; margin-bottom: 10px; flex-shrink: 0;
+            gap: 8px; margin-bottom: 5px; flex-shrink: 0;
         }
         .chip { position: relative; cursor: pointer; }
         .chip input { position: absolute; opacity: 0; }
@@ -93,28 +89,41 @@
             font-weight: bold; transform: scale(1.03);
         }
 
-        .select-group { display: flex; gap: 12px; justify-content: center; padding: 10px 0; z-index: 100; }
+        .select-group { display: flex; gap: 10px; justify-content: center; padding: 5px 0; z-index: 100; }
         select { 
             padding: 8px 30px 8px 15px; border-radius: 8px; 
             background: #2d3436; color: #fff; border: 1px solid rgba(255,255,255,0.2); 
             font-size: 0.9rem; cursor: pointer;
         }
 
-        /* 题目区域 */
         .question-area { 
             text-align: center; flex-grow: 1; 
             display: flex; flex-direction: column; justify-content: center;
+            min-height: 60px;
         }
         .feedback { font-size: 0.9rem; height: 1.2rem; margin-bottom: 5px; font-weight: 800; letter-spacing: 2px; }
         .question-text { font-size: 1.8rem; font-weight: 800; color: #fff; }
 
-        /* 钢琴区域 */
-        .keyboard-wrapper { width: 100%; overflow-x: auto; padding-top: 10px; flex-shrink: 0; }
-        .piano { 
-            display: flex; position: relative; margin: 0 auto;
-            height: calc(var(--white-key-h) + 12px); 
-            background: #000; padding: 6px; border-radius: 12px;
+        /* --- 修正后的键盘布局 --- */
+        .keyboard-wrapper { 
+            width: 100%; 
+            display: flex;             /* 启用 flex */
+            justify-content: center;    /* 彻底居中 */
+            overflow-x: auto; 
+            padding-top: 5px; 
+            flex-shrink: 0;
         }
+        .piano { 
+            display: flex; 
+            position: relative; 
+            width: fit-content;         /* 宽度自适应内部按键 */
+            background: #000; 
+            padding: 6px; 
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        }
+        /* ------------------------- */
+
         .key {
             width: var(--white-key-w); height: var(--white-key-h);
             background: var(--white-key); border: 1px solid #ccc; border-radius: 0 0 5px 5px;
@@ -129,22 +138,15 @@
         .key.correct { background: var(--correct) !important; }
         .key.wrong { background: var(--wrong) !important; }
 
-        /* --- 手机横屏超压缩样式 --- */
-        @media (orientation: landscape) and (max-height: 500px) {
-            .container { padding: 8px 15px; }
-            header { margin-bottom: 5px; }
-            header h1 { font-size: 0.9rem; }
-            .chip-grid { grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 5px; }
-            .chip-content { padding: 4px 0; font-size: 0.7rem; }
-            .question-area { margin: 5px 0; }
-            .question-text { font-size: 1.2rem; }
+        @media (orientation: landscape) and (max-height: 450px) {
+            .container { padding: 10px 15px; }
+            .chip-grid { grid-template-columns: repeat(6, 1fr); gap: 4px; }
+            .question-area { min-height: 40px; }
+            .question-text { font-size: 1.3rem; }
             .feedback { display: none; }
-            .select-group { padding: 2px 0; }
-            
-            --white-key-h: 95px;
-            --white-key-w: 42px;
-            .key.black { height: 60px; width: 24px; margin-left: -12px; margin-right: -12px; }
-            .piano { padding: 4px; border-radius: 8px; }
+            --white-key-h: 110px;
+            --white-key-w: 44px;
+            .key.black { height: 70px; width: 26px; margin-left: -13px; margin-right: -13px; }
         }
     </style>
 </head>
@@ -152,7 +154,7 @@
 
     <div id="orientation-overlay">
         <span style="font-size: 3rem;">🔄</span>
-        <p>请旋转手机至横屏模式以开始练习</p>
+        <p>请旋转手机至横屏模式</p>
     </div>
 
     <div class="container" id="app-container">
@@ -237,12 +239,9 @@
         nextQuestion();
     }
 
-    // 全屏切换
     function toggleFullScreen() {
         if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => {
-                alert(`无法进入全屏: ${err.message}`);
-            });
+            document.documentElement.requestFullscreen().catch(() => {});
         } else {
             document.exitFullscreen();
         }
