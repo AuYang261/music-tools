@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Piano Flow | Immersive</title>
+    <style>
+        :root {
+            --bg-dark: #0a0c0e;
+            --card-bg: #16191d;
+            --accent: #00d4ff;
+            --accent-glow: rgba(0, 212, 255, 0.4);
+            --correct: #2ecc71;
+            --wrong: #ff4757;
+            --white-key: #fdfdfd;
+            --black-key: #252a2e;
+            --text-main: #ffffff;
+            --text-dim: #7f8c8d;
+            --white-key-w: 48px;
+            --white-key-h: 150px;
+        }
+
+        * { touch-action: manipulation; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0; padding: 0;
+            height: 100dvh; width: 100vw;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+        }
+
+        /* 旋转提示遮罩 */
+        #orientation-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-dark); z-index: 9999;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+        }
+        @media (orientation: portrait) {
+            #orientation-overlay { display: flex; }
+        }
+
+        .container {
+            width: 100%; height: 100%;
+            max-width: 1100px; max-height: 800px;
+            background: var(--card-bg);
+            padding: 20px;
+            display: flex; flex-direction: column;
+            position: relative; transition: padding 0.3s;
+        }
+
+        header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 15px; flex-shrink: 0;
+        }
+        header h1 { margin: 0; font-size: 1.1rem; letter-spacing: 1px; color: var(--accent); cursor: pointer; }
+        
+        .top-ctrl { display: flex; gap: 10px; align-items: center; }
+        .fullscreen-btn {
+            background: rgba(255,255,255,0.1); border: none; color: #fff;
+            padding: 5px 10px; border-radius: 5px; font-size: 0.7rem; cursor: pointer;
+        }
+
+        .mode-selector { display: flex; gap: 4px; background: rgba(0,0,0,0.4); padding: 4px; border-radius: 8px; }
+        .mode-btn { 
+            padding: 6px 14px; border: none; border-radius: 6px; 
+            background: transparent; color: var(--text-dim); 
+            cursor: pointer; font-size: 0.8rem; font-weight: 600;
+        }
+        .mode-btn.active { background: var(--accent); color: #000; box-shadow: 0 0 10px var(--accent-glow); }
+
+        /* 选项区域 */
+        .chip-grid { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); 
+            gap: 8px; margin-bottom: 10px; flex-shrink: 0;
+        }
+        .chip { position: relative; cursor: pointer; }
+        .chip input { position: absolute; opacity: 0; }
+        .chip-content {
+            display: block; padding: 10px 4px; background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;
+            text-align: center; font-size: 0.8rem; color: #555; transition: 0.3s;
+        }
+        .chip input:checked + .chip-content { border-color: rgba(255,255,255,0.3); color: #fff; }
+
+        .chip.target-highlight .chip-content {
+            background: rgba(0, 212, 255, 0.2) !important;
+            border-color: var(--accent) !important;
+            color: var(--accent) !important;
+            box-shadow: 0 0 15px var(--accent-glow);
+            font-weight: bold; transform: scale(1.03);
+        }
+
+        .select-group { display: flex; gap: 12px; justify-content: center; padding: 10px 0; z-index: 100; }
+        select { 
+            padding: 8px 30px 8px 15px; border-radius: 8px; 
+            background: #2d3436; color: #fff; border: 1px solid rgba(255,255,255,0.2); 
+            font-size: 0.9rem; cursor: pointer;
+        }
+
+        /* 题目区域 */
+        .question-area { 
+            text-align: center; flex-grow: 1; 
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .feedback { font-size: 0.9rem; height: 1.2rem; margin-bottom: 5px; font-weight: 800; letter-spacing: 2px; }
+        .question-text { font-size: 1.8rem; font-weight: 800; color: #fff; }
+
+        /* 钢琴区域 */
+        .keyboard-wrapper { width: 100%; overflow-x: auto; padding-top: 10px; flex-shrink: 0; }
+        .piano { 
+            display: flex; position: relative; margin: 0 auto;
+            height: calc(var(--white-key-h) + 12px); 
+            background: #000; padding: 6px; border-radius: 12px;
+        }
+        .key {
+            width: var(--white-key-w); height: var(--white-key-h);
+            background: var(--white-key); border: 1px solid #ccc; border-radius: 0 0 5px 5px;
+            cursor: pointer; position: relative; z-index: 1;
+        }
+        .key.black {
+            width: 30px; height: 90px;
+            background: var(--black-key); margin-left: -15px; 
+            margin-right: -15px; z-index: 2; border: none; border-radius: 0 0 4px 4px;
+        }
+        .key.root { background: var(--accent) !important; box-shadow: 0 0 20px var(--accent-glow); }
+        .key.correct { background: var(--correct) !important; }
+        .key.wrong { background: var(--wrong) !important; }
+
+        /* --- 手机横屏超压缩样式 --- */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .container { padding: 8px 15px; }
+            header { margin-bottom: 5px; }
+            header h1 { font-size: 0.9rem; }
+            .chip-grid { grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 5px; }
+            .chip-content { padding: 4px 0; font-size: 0.7rem; }
+            .question-area { margin: 5px 0; }
+            .question-text { font-size: 1.2rem; }
+            .feedback { display: none; }
+            .select-group { padding: 2px 0; }
+            
+            --white-key-h: 95px;
+            --white-key-w: 42px;
+            .key.black { height: 60px; width: 24px; margin-left: -12px; margin-right: -12px; }
+            .piano { padding: 4px; border-radius: 8px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="orientation-overlay">
+        <span style="font-size: 3rem;">🔄</span>
+        <p>请旋转手机至横屏模式以开始练习</p>
+    </div>
+
+    <div class="container" id="app-container">
+        <header>
+            <h1 onclick="toggleFullScreen()">PIANO FLOW</h1>
+            <div class="top-ctrl">
+                <button class="fullscreen-btn" onclick="toggleFullScreen()">全屏模式</button>
+                <div class="mode-selector">
+                    <button class="mode-btn active" id="btn-interval" onclick="switchMainMode('interval')">音程练习</button>
+                    <button class="mode-btn" id="btn-degree" onclick="switchMainMode('degree')">调性级数</button>
+                </div>
+            </div>
+        </header>
+
+        <div id="interval-panel">
+            <div class="chip-grid" id="interval-grid"></div>
+        </div>
+
+        <div id="key-panel" style="display:none">
+            <div class="select-group">
+                <select id="keySelect"></select>
+                <select id="scaleTypeSelect">
+                    <option value="major">大调</option>
+                    <option value="minor">自然小调</option>
+                    <option value="harmonic">和声小调</option>
+                    <option value="melodic">旋律小调</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="question-area">
+            <div class="feedback" id="feedback"></div>
+            <div class="question-text" id="question-text">...</div>
+        </div>
+
+        <div class="keyboard-wrapper">
+            <div class="piano" id="piano-body"></div>
+        </div>
+    </div>
+
+<script>
+    const noteNames = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+    const intervals = [
+        { n: '小二', v: 1 }, { n: '大二', v: 2 }, { n: '小三', v: 3 }, { n: '大三', v: 4 },
+        { n: '纯四', v: 5 }, { n: '三全', v: 6 }, { n: '纯五', v: 7 }, { n: '小六', v: 8 },
+        { n: '大六', v: 9 }, { n: '小七', v: 10 }, { n: '大七', v: 11 }
+    ];
+    const patterns = {
+        major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10],
+        harmonic: [0, 2, 3, 5, 7, 8, 11], melodic: [0, 2, 3, 5, 7, 9, 11]
+    };
+
+    let currentRoot = -1, currentTarget = -1, isWaiting = false, mainMode = 'interval';
+
+    function init() {
+        const grid = document.getElementById('interval-grid');
+        intervals.forEach(item => {
+            const checked = [3, 4, 7].includes(item.v) ? 'checked' : '';
+            grid.innerHTML += `
+                <label class="chip" data-v="${item.v}">
+                    <input type="checkbox" name="interval" value="${item.v}" data-name="${item.n}" ${checked} onchange="nextQuestion(true)">
+                    <span class="chip-content">${item.n}</span>
+                </label>`;
+        });
+
+        const piano = document.getElementById('piano-body');
+        for (let i = 0; i < 24; i++) {
+            const isBlack = [1, 3, 6, 8, 10].includes(i % 12);
+            const key = document.createElement('div');
+            key.className = `key ${isBlack ? 'black' : ''}`;
+            const startHandler = (e) => { e.preventDefault(); handlePress(i); };
+            key.addEventListener('mousedown', startHandler);
+            key.addEventListener('touchstart', startHandler);
+            piano.appendChild(key);
+        }
+
+        const ks = document.getElementById('keySelect');
+        noteNames.forEach((n, i) => ks.innerHTML += `<option value="${i}">${n} 调</option>`);
+        ks.addEventListener('change', () => nextQuestion(true));
+        document.getElementById('scaleTypeSelect').addEventListener('change', () => nextQuestion(true));
+        
+        nextQuestion();
+    }
+
+    // 全屏切换
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                alert(`无法进入全屏: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    function switchMainMode(mode) {
+        mainMode = mode;
+        document.getElementById('btn-interval').classList.toggle('active', mode === 'interval');
+        document.getElementById('btn-degree').classList.toggle('active', mode === 'degree');
+        document.getElementById('interval-panel').style.display = mode === 'interval' ? 'block' : 'none';
+        document.getElementById('key-panel').style.display = mode === 'degree' ? 'block' : 'none';
+        nextQuestion(true);
+    }
+
+    function nextQuestion(reset = false) {
+        isWaiting = false;
+        const qEl = document.getElementById('question-text');
+        document.getElementById('feedback').innerText = "";
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('target-highlight'));
+
+        if (mainMode === 'interval') {
+            const selected = Array.from(document.querySelectorAll('input[name="interval"]:checked'));
+            if (!selected.length) { qEl.innerText = "请至少选一个"; return; }
+            const pick = selected[Math.floor(Math.random() * selected.length)];
+            const v = parseInt(pick.value);
+            currentRoot = Math.floor(Math.random() * 12);
+            currentTarget = currentRoot + v;
+            qEl.innerText = `${noteNames[currentRoot]} 的 ${pick.getAttribute('data-name')}`;
+            document.querySelector(`.chip[data-v="${v}"]`).classList.add('target-highlight');
+        } else {
+            const base = parseInt(document.getElementById('keySelect').value);
+            const st = document.getElementById('scaleTypeSelect');
+            const deg = Math.floor(Math.random() * 7) + 1;
+            currentRoot = base;
+            currentTarget = base + patterns[st.value][deg - 1];
+            qEl.innerText = `${noteNames[base]}${st.options[st.selectedIndex].text} 第 ${deg} 级`;
+        }
+        refreshPiano();
+    }
+
+    function refreshPiano(pressedIdx = null, isCorrect = null) {
+        document.querySelectorAll('.key').forEach((key, i) => {
+            if (pressedIdx === null) key.classList.remove('root', 'correct', 'wrong');
+            if (i % 12 === currentRoot % 12) key.classList.add('root');
+            if (i === pressedIdx) key.classList.add(isCorrect ? 'correct' : 'wrong');
+        });
+    }
+
+    function handlePress(idx) {
+        if (isWaiting) return;
+        const fb = document.getElementById('feedback');
+        if (idx % 12 === currentTarget % 12) {
+            fb.innerText = "EXCELLENT"; fb.style.color = "var(--correct)";
+            refreshPiano(idx, true); isWaiting = true; setTimeout(nextQuestion, 700);
+        } else {
+            fb.innerText = "TRY AGAIN"; fb.style.color = "var(--wrong)";
+            refreshPiano(idx, false);
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>

@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专业节奏训练器</title>
+    <style>
+        body {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        h1 {
+            color: #3498db;
+            margin-bottom: 0.5rem;
+        }
+
+        canvas {
+            background-color: #34495e;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            margin-top: 1.5rem;
+        }
+
+        #controls-bar,
+        #pattern-section {
+            background-color: #34495e;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        #controls-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        #controls-bar label,
+        #controls-bar input,
+        #controls-bar button {
+            font-size: 1em;
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #3498db;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+        }
+
+        #controls-bar button {
+            cursor: pointer;
+            background-color: #27ae60;
+            border-color: #27ae60;
+        }
+
+        #controls-bar button.stop {
+            background-color: #c0392b;
+            border-color: #c0392b;
+        }
+
+        #hit-bar,
+        #pattern-section {
+            background-color: #34495e;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        #hit-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        #hit-bar button {
+            font-size: 1em;
+            padding: 20px;
+            padding-left: 100px;
+            padding-right: 100px;
+            border-radius: 20px;
+            border: 1px solid #3498db;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+        }
+
+        #hit-bar button {
+            cursor: pointer;
+            background-color: hsl(27, 100%, 50%);
+            border-color: #ff0000;
+        }
+
+        #hit-bar button.active {
+            padding-left: 110px;
+            padding-right: 110px;
+            background-color: #c0392b;
+            border-color: #c0392b;
+        }
+
+        #pattern-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 10px;
+        }
+
+        .pattern-btn {
+            background-color: #2c3e50;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 1 / 1;
+        }
+
+        .pattern-btn:hover {
+            background-color: #3e5670;
+        }
+
+        .pattern-btn.selected {
+            background-color: #3498db;
+            border-color: #ecf0f1;
+        }
+
+        .pattern-icon svg {
+            width: 100%;
+            height: 48px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .pattern-icon .note-head {
+            fill: currentColor;
+            stroke: none;
+        }
+
+        .pattern-name {
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        #stats-container {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 1.5rem;
+            background-color: #34495e;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #e67e22;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #bdc3c7;
+        }
+
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>专业节奏训练器</h1>
+        <p>选择一种节奏型，点击“哒！”或按 'a' 键进行敲击，系统将评估您的节奏稳定性。</p>
+
+        <div id="pattern-section">
+            <div id="pattern-selector"></div>
+        </div>
+
+        <div id="controls-bar">
+            <label for="bpm-input">BPM:</label>
+            <input type="number" id="bpm-input" value="100" min="40" max="240">
+            <button id="start-stop-btn">开始参考节拍</button>
+        </div>
+
+        <div id="hit-bar">
+            <button id="hit-btn">哒!</button>
+        </div>
+        <canvas id="rhythmChart" width="850" height="350"></canvas>
+        <div id="stats-container"></div>
+    </div>
+
+    <script>
+        // --- 基本设置 ---
+        const canvas = document.getElementById('rhythmChart');
+        const ctx = canvas.getContext('2d');
+        const padding = { top: 30, right: 30, bottom: 50, left: 60 };
+
+        // --- 【核心升级】SVG图标与精确节奏定义 ---
+        const RHYTHM_PATTERNS = {
+            'quarters': {
+                name: '四分音符',
+                icon: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="92.000000pt" height="108.000000pt" viewBox="0 0 92.000000 108.000000" preserveAspectRatio="xMidYMid meet" class="h-full w-full"><g transform="translate(0.000000,108.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none"><path d="M497 984 c-4 -4 -7 -152 -7 -330 0 -177 -3 -329 -6 -338 -5 -12 -10 -13 -26 -5 -32 17 -113 -9 -164 -54 -40 -35 -44 -43 -44 -83 0 -65 23 -84 103 -84 54 0 70 4 103 29 78 56 75 33 72 472 -3 375 -6 417 -31 393z"></path></g></svg>`,
+                pattern: [1.0]
+            },
+            'eighths': {
+                name: '八分音符',
+                icon: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="120.000000pt" height="106.000000pt" viewBox="0 0 120.000000 106.000000" preserveAspectRatio="xMidYMid meet" class="h-full w-full"><g transform="translate(0.000000,106.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none"><path d="M328 623 l-3 -338 -36 3 c-60 5 -117 -16 -160 -59 -33 -33 -39 -45 -39 -82 0 -63 24 -82 104 -82 49 0 68 6 100 27 78 53 76 43 76 406 l0 322 250 0 250 0 -2 -267 -3 -268 -34 3 c-110 11 -222 -86 -195 -170 10 -33 28 -47 71 -54 60 -9 122 12 166 57 l37 40 0 399 0 400 -290 0 -290 0 -2 -337z"></path></g></svg>`,
+                pattern: [0.5]
+            },
+            'sixteenth_eighth': {
+                name: '前十六后八',
+                icon: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="152.000000pt" height="106.000000pt" viewBox="0 0 152.000000 106.000000" preserveAspectRatio="xMidYMid meet" class="h-full w-full"><g transform="translate(0.000000,106.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none"><path d="M373 983 c-5 -2 -7 -141 -5 -310 2 -170 0 -323 -3 -341 -5 -28 -9 -31 -31 -26 -50 13 -110 -5 -158 -47 -43 -38 -46 -44 -46 -88 0 -72 41 -97 136 -84 40 5 56 15 96 54 l48 48 2 233 3 233 163 3 162 2 0 -180 c0 -99 -3 -180 -6 -180 -3 0 -13 4 -22 9 -31 16 -123 -16 -164 -56 -33 -32 -38 -43 -38 -83 0 -65 23 -85 100 -84 66 1 113 25 154 78 l26 34 2 324 3 323 245 0 245 0 3 -264 c1 -150 -2 -269 -7 -274 -5 -5 -17 -5 -29 2 -33 18 -130 -20 -169 -65 -41 -47 -46 -108 -11 -139 36 -30 132 -26 184 9 77 50 75 41 72 479 l-3 388 -472 2 c-260 1 -476 1 -480 0z m371 -150 c4 -9 2 -21 -3 -26 -7 -7 -233 -13 -318 -8 -14 1 -18 33 -6 44 3 4 77 7 164 7 137 0 158 -2 163 -17z"></path></g></svg>`,
+                pattern: [0.25, 0.25, 0.5]
+            },
+            'eighth_sixteenth': {
+                name: '前八后十六',
+                icon: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="146.000000pt" height="104.000000pt" viewBox="0 0 146.000000 104.000000" preserveAspectRatio="xMidYMid meet" class="h-full w-full"><g transform="translate(0.000000,104.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none"><path d="M308 653 l-3 -338 -36 3 c-60 5 -117 -16 -160 -59 -33 -33 -39 -45 -39 -82 0 -64 24 -82 105 -81 54 0 69 5 102 29 77 59 72 33 73 398 0 180 3 327 8 327 4 0 115 1 247 1 l240 0 3 -271 2 -271 -35 7 c-108 20 -228 -84 -196 -169 15 -39 40 -52 101 -52 45 0 65 6 98 28 76 50 77 53 79 306 2 124 7 229 11 233 5 5 73 7 153 6 l144 -3 0 -175 0 -175 -45 3 c-59 4 -119 -20 -159 -63 -25 -28 -31 -43 -31 -78 0 -63 24 -82 104 -81 53 0 69 5 103 29 75 54 73 40 73 476 l0 389 -470 0 -470 0 -2 -337z m895 197 c5 0 7 -10 5 -22 -3 -23 -6 -23 -154 -26 -133 -2 -152 -1 -158 14 -15 39 9 41 307 34z"></path></g></svg>`,
+                pattern: [0.5, 0.25, 0.25]
+            },
+            'dotted': {
+                name: '附点八分',
+                icon: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="118.000000pt" height="106.000000pt" viewBox="0 0 118.000000 106.000000" preserveAspectRatio="xMidYMid meet" class="h-full w-full"><g transform="translate(0.000000,106.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none"><path d="M258 633 l-3 -338 -36 3 c-60 5 -117 -16 -160 -59 -32 -32 -39 -46 -39 -77 0 -25 7 -48 20 -62 18 -20 30 -24 83 -24 49 0 70 6 103 26 76 49 74 38 74 403 0 179 3 325 8 325 20 1 639 1 650 0 8 0 12 -9 10 -22 -3 -22 -8 -23 -96 -26 l-93 -3 3 -66 3 -65 90 -2 90 -1 0 -175 0 -175 -36 3 c-60 5 -117 -16 -160 -59 -33 -33 -39 -45 -39 -82 0 -63 24 -82 104 -81 53 0 69 5 104 30 75 53 72 36 72 473 l0 391 -375 0 -375 0 -2 -337z"></path><path d="M393 243 c-7 -2 -13 -22 -13 -43 0 -40 18 -60 54 -60 20 0 56 35 56 55 0 37 -57 65 -97 48z"></path></g></svg>`,
+                pattern: [0.75, 0.25]
+            },
+            'rest_eighth': {
+                name: '休止+八分',
+                icon: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="144.000000pt" height="106.000000pt" viewBox="0 0 144.000000 106.000000" preserveAspectRatio="xMidYMid meet" class="h-full w-full"><g transform="translate(0.000000,106.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none"><path d="M970 692 c0 -192 -3 -351 -6 -355 -3 -3 -17 -1 -30 5 -54 25 -165 -25 -206 -94 -76 -124 94 -190 219 -84 61 52 63 61 63 368 0 267 1 278 19 278 45 0 92 -44 139 -130 22 -39 25 -299 4 -322 -14 -16 -13 -18 4 -18 39 0 44 18 44 171 0 88 -4 150 -10 154 -5 3 -10 13 -10 21 0 16 -64 121 -125 205 -23 31 -48 72 -55 90 -14 33 -33 59 -44 59 -3 0 -6 -157 -6 -348z"></path><path d="M210 761 c-19 -15 -25 -29 -25 -59 0 -74 63 -105 133 -65 16 9 36 13 46 10 16 -6 16 -9 2 -29 -9 -12 -16 -32 -16 -45 0 -12 -4 -25 -10 -28 -5 -3 -10 -19 -10 -35 0 -16 -4 -32 -10 -35 -6 -3 -10 -17 -10 -30 0 -13 -8 -40 -17 -60 -17 -36 -14 -51 11 -42 13 5 23 32 57 147 7 25 16 50 20 55 4 6 10 29 14 52 4 24 11 45 16 49 11 6 12 114 2 114 -5 0 -15 -15 -24 -33 -20 -41 -62 -46 -67 -7 -8 57 -64 77 -112 41z"></path></g></svg>`,
+                pattern: [1.0]
+            },
+            'syncopation': {
+                name: '切分音',
+                icon: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="184.000000pt" height="106.000000pt" viewBox="0 0 144.000000 106.000000" preserveAspectRatio="xMidYMid meet" class="h-full w-full"><g transform="translate(0.000000,106.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none"><path d="M70 692 c0 -192 -3 -351 -6 -355 -3 -3 -17 -1 -30 5 -54 25 -165 -25 -206 -94 -76 -124 94 -190 219 -84 61 52 63 61 63 368 0 267 1 278 19 278 45 0 92 -44 139 -130 22 -39 25 -299 4 -322 -14 -16 -13 -18 4 -18 39 0 44 18 44 171 0 88 -4 150 -10 154 -5 3 -10 13 -10 21 0 16 -64 121 -125 205 -23 31 -48 72 -55 90 -14 33 -33 59 -44 59 -3 0 -6 -157 -6 -348z"></path><path d="M700 984 c-4 -4 -7 -152 -7 -330 0 -177 -3 -329 -6 -338 -5 -12 -10 -13 -26 -5 -32 17 -113 -9 -164 -54 -40 -35 -44 -43 -44 -83 0 -65 23 -84 103 -84 54 0 70 4 103 29 78 56 75 33 72 472 -3 375 -6 417 -31 393z"></path><path d="M1200 692 c0 -192 -3 -351 -6 -355 -3 -3 -17 -1 -30 5 -54 25 -165 -25 -206 -94 -76 -124 94 -190 219 -84 61 52 63 61 63 368 0 267 1 278 19 278 45 0 92 -44 139 -130 22 -39 25 -299 4 -322 -14 -16 -13 -18 4 -18 39 0 44 18 44 171 0 88 -4 150 -10 154 -5 3 -10 13 -10 21 0 16 -64 121 -125 205 -23 31 -48 72 -55 90 -14 33 -33 59 -44 59 -3 0 -6 -157 -6 -348z"></path></g></svg>`,
+                pattern: [0.25, 0.5, 0.25]
+            }
+        };
+        let selectedPatternKey = 'quarters';
+
+        // --- DOM 元素 ---
+        const patternSelector = document.getElementById('pattern-selector');
+        const bpmInput = document.getElementById('bpm-input');
+        const startStopBtn = document.getElementById('start-stop-btn');
+        const hitBtn = document.getElementById('hit-btn');
+        const statsContainer = document.getElementById('stats-container');
+
+        // --- 状态与数据 ---
+        let isPlaying = false;
+        let schedulerInterval = null;
+        let audioCtx;
+        let patternData = [];
+        let lastPatternPressTime = 0;
+        let userBeatIndex = 0;
+
+        // --- 初始化 ---
+        function initialize() {
+            populatePatterns();
+            setupEventListeners();
+            reset();
+            animationLoop();
+        }
+
+        function populatePatterns() {
+            patternSelector.innerHTML = '';
+            for (const key in RHYTHM_PATTERNS) {
+                const pattern = RHYTHM_PATTERNS[key];
+                const btn = document.createElement('div');
+                btn.className = 'pattern-btn';
+                btn.dataset.patternKey = key;
+                btn.innerHTML = `<div class="pattern-icon">${pattern.icon}</div><div class="pattern-name">${pattern.name}</div>`;
+                if (key === selectedPatternKey) btn.classList.add('selected');
+                patternSelector.appendChild(btn);
+            }
+        }
+
+        function setupEventListeners() {
+            patternSelector.addEventListener('click', (e) => {
+                const btn = e.target.closest('.pattern-btn');
+                if (btn) {
+                    selectedPatternKey = btn.dataset.patternKey;
+                    document.querySelectorAll('.pattern-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    reset();
+                }
+            });
+
+            startStopBtn.addEventListener('click', toggleMetronome);
+            document.addEventListener('keydown', handleKeyPress);
+            hitBtn.addEventListener('click', () => {
+                const event = new KeyboardEvent('keydown', { key: 'a' });
+                document.dispatchEvent(event);
+            });
+        }
+
+        function handleKeyPress(event) {
+            if (event.key !== 'a' || event.repeat) return;
+            hitBtn.classList.add('active');
+            // 短暂时间后移除激活状态
+            setTimeout(() => hitBtn.classList.remove('active'), 50);
+            const now = performance.now();
+
+            if (lastPatternPressTime === 0) {
+                lastPatternPressTime = now;
+                userBeatIndex = 0;
+                patternData = [];
+            } else {
+                const userInterval = now - lastPatternPressTime;
+                const bpm = parseInt(bpmInput.value);
+                const quarterNoteDuration = 60000 / bpm;
+                const patternDefinition = RHYTHM_PATTERNS[selectedPatternKey].pattern;
+
+                const patternDurationSum = patternDefinition.reduce((a, b) => a + b, 0);
+                const targetInterval = patternDefinition[userBeatIndex] * quarterNoteDuration;
+
+                const deviation = userInterval - targetInterval;
+
+                patternData.push({ deviation });
+                if (patternData.length > 40) patternData.shift();
+
+                lastPatternPressTime = now;
+                userBeatIndex = (userBeatIndex + 1) % patternDefinition.length;
+            }
+        }
+
+        function reset() {
+            stopMetronome();
+            patternData = [];
+            lastPatternPressTime = 0;
+            userBeatIndex = 0;
+            updateStats();
+        }
+
+        // --- 节拍器逻辑 ---
+        function toggleMetronome() {
+            if (isPlaying) {
+                stopMetronome();
+            } else {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                startMetronome();
+            }
+        }
+
+        function startMetronome() {
+            isPlaying = true;
+            startStopBtn.textContent = '停止参考节拍';
+            startStopBtn.classList.add('stop');
+
+            let nextBeatTime = audioCtx.currentTime + 0.2;
+            let patternIndex = 0;
+            let beatInMeasure = 0.0;
+            const tolerance = 0.001;
+            const pattern = RHYTHM_PATTERNS[selectedPatternKey].pattern;
+
+            function schedule() {
+                const bpm = parseInt(bpmInput.value);
+                const quarterNoteDuration = 60 / bpm;
+
+                while (nextBeatTime < audioCtx.currentTime + 0.1) {
+                    if (selectedPatternKey !== 'rest_eighth') {
+                        playMetronomeSound(nextBeatTime, beatInMeasure < tolerance);
+                    } else {
+                        // For rest_eighth, play sound on the upbeat (where the note is)
+                        playMetronomeSound(nextBeatTime + (quarterNoteDuration / 2) / 1000, false);
+                    }
+
+                    const beatDuration = pattern[patternIndex] * quarterNoteDuration;
+                    nextBeatTime += beatDuration;
+
+                    let currentBeatValue = pattern[patternIndex];
+                    // For rest_eighth, the pattern value is 1.0 but it contains a rest.
+                    if (selectedPatternKey === 'rest_eighth') currentBeatValue = 1.0;
+
+                    beatInMeasure += currentBeatValue;
+                    if (beatInMeasure >= 4.0 - tolerance) {
+                        beatInMeasure = 0.0;
+                    }
+                    patternIndex = (patternIndex + 1) % pattern.length;
+                }
+            }
+            schedulerInterval = setInterval(schedule, 25);
+        }
+
+        function stopMetronome() {
+            isPlaying = false;
+            startStopBtn.textContent = '开始参考节拍';
+            startStopBtn.classList.remove('stop');
+            clearInterval(schedulerInterval);
+        }
+
+        function playMetronomeSound(time, isAccent) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.frequency.value = isAccent ? 880 : 523;
+            gain.gain.setValueAtTime(0.5, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+            osc.start(time); osc.stop(time + 0.05);
+        }
+
+        // --- 绘图与统计 ---
+        function animationLoop() {
+            const chartWidth = canvas.width - padding.left - padding.right;
+            const chartHeight = canvas.height - padding.top - padding.bottom;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawAxes(chartHeight);
+            drawPattern(chartWidth, chartHeight);
+            updateStats();
+            requestAnimationFrame(animationLoop);
+        }
+
+        function drawPattern(chartWidth, chartHeight) {
+            const maxDeviation = 200;
+            const perfectZoneHeight = (50 / maxDeviation) * (chartHeight / 2);
+            ctx.fillStyle = 'rgba(46, 204, 113, 0.2)';
+            ctx.fillRect(padding.left, canvas.height / 2 - perfectZoneHeight, chartWidth, perfectZoneHeight * 2);
+            const pointWidth = chartWidth / 40;
+            patternData.forEach((data, index) => {
+                const deviation = Math.max(-maxDeviation, Math.min(maxDeviation, data.deviation));
+                const y = canvas.height / 2 - (deviation / maxDeviation) * (chartHeight / 2);
+                if (Math.abs(data.deviation) <= 50) ctx.fillStyle = '#2ecc71';
+                else if (Math.abs(data.deviation) <= 100) ctx.fillStyle = '#f1c40f';
+                else ctx.fillStyle = '#e74c3c';
+                ctx.beginPath();
+                ctx.arc(padding.left + index * pointWidth + pointWidth / 2, y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function drawAxes(chartHeight) {
+            ctx.strokeStyle = '#bdc3c7'; ctx.fillStyle = '#bdc3c7';
+            ctx.font = '12px Arial'; ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, canvas.height - padding.bottom);
+            ctx.lineTo(canvas.width - padding.right, canvas.height - padding.bottom);
+            ctx.stroke();
+            ctx.textAlign = "center";
+            ctx.fillText("敲击次数", canvas.width / 2, canvas.height - padding.bottom + 30);
+            ctx.save();
+            ctx.rotate(-Math.PI / 2); ctx.textAlign = "center";
+            ctx.fillText("间隔偏差 (ms)", -canvas.height / 2, padding.left - 45);
+            ctx.restore();
+
+            const midY = canvas.height / 2;
+            ctx.textAlign = "right";
+            ctx.fillText("0 (准确)", padding.left - 10, midY);
+            ctx.fillText(`100 (慢)`, padding.left - 10, midY - chartHeight / 4);
+            ctx.fillText(`200 (慢)`, padding.left - 10, padding.top);
+            ctx.fillText(`100 (快)`, padding.left - 10, midY + chartHeight / 4);
+            ctx.fillText(`200 (快)`, padding.left - 10, canvas.height - padding.bottom);
+            ctx.strokeStyle = '#e67e22'; ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(padding.left, midY);
+            ctx.lineTo(canvas.width - padding.right, midY);
+            ctx.stroke(); ctx.setLineDash([]);
+        }
+
+        function updateStats() {
+            let statsHtml;
+            if (patternData.length < 1) {
+                statsHtml = `<div class="stat"><div class="stat-value">--</div><div class="stat-label">平均偏差</div></div><div class="stat"><div class="stat-value">--</div><div class="stat-label">稳定率</div></div>`;
+            } else {
+                const deviations = patternData.map(d => d.deviation);
+                const avgDev = deviations.reduce((a, b) => a + b) / deviations.length;
+                const perfectHits = patternData.filter(d => Math.abs(d.deviation) <= 50).length;
+                const accuracy = (perfectHits / patternData.length) * 100;
+                statsHtml = `<div class="stat"><div class="stat-value">${avgDev.toFixed(1)}</div><div class="stat-label">平均偏差 (${avgDev > 2 ? '偏慢' : (avgDev < -2 ? '偏快' : '准确')})</div></div><div class="stat"><div class="stat-value">${accuracy.toFixed(1)}%</div><div class="stat-label">稳定率 (±50ms内)</div></div>`;
+            }
+            statsContainer.innerHTML = statsHtml;
+        }
+
+        // 启动
+        initialize();
+    </script>
+</body>
+
+</html>
+
