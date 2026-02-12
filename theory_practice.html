@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Piano Flow</title>
     <style>
         :root {
@@ -20,136 +22,368 @@
             --white-key-h: 150px;
         }
 
-        * { touch-action: manipulation; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        * {
+            touch-action: manipulation;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
 
         body {
             font-family: 'Segoe UI', system-ui, sans-serif;
             background-color: var(--bg-dark);
             color: var(--text-main);
-            margin: 0; padding: 0;
-            height: 100dvh; width: 100vw;
-            display: flex; align-items: center; justify-content: center;
+            margin: 0;
+            padding: 0;
+            height: 100dvh;
+            width: 100vw;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
         }
 
         #orientation-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg-dark); z-index: 9999;
-            display: none; flex-direction: column; align-items: center; justify-content: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-dark);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
-        @media (orientation: portrait) { #orientation-overlay { display: flex; } }
+
+        @media (orientation: portrait) {
+            #orientation-overlay {
+                display: flex;
+            }
+        }
 
         .container {
-            width: 100%; height: 100%;
+            width: 100%;
+            height: 100%;
             max-width: 1100px;
             background: var(--card-bg);
-            padding: 20px;
-            display: flex; flex-direction: column;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
             position: relative;
+            overflow-y: auto;
+            /* 允许对照表展开时滚动查看 */
         }
 
-        header { 
-            display: flex; justify-content: space-between; align-items: center; 
-            margin-bottom: 10px; flex-shrink: 0;
-        }
-        header h1 { margin: 0; font-size: 1.1rem; letter-spacing: 1px; color: var(--accent); cursor: pointer; }
-        
-        .top-ctrl { display: flex; gap: 8px; align-items: center; }
-        .fullscreen-btn {
-            background: rgba(255,255,255,0.1); border: none; color: #fff;
-            padding: 5px 10px; border-radius: 5px; font-size: 0.7rem; cursor: pointer;
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-shrink: 0;
         }
 
-        .mode-selector { display: flex; gap: 4px; background: rgba(0,0,0,0.4); padding: 4px; border-radius: 8px; }
-        .mode-btn { 
-            padding: 6px 14px; border: none; border-radius: 6px; 
-            background: transparent; color: var(--text-dim); 
-            cursor: pointer; font-size: 0.8rem; font-weight: 600;
+        header h1 {
+            margin: 0;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            color: var(--accent);
+            cursor: pointer;
         }
-        .mode-btn.active { background: var(--accent); color: #000; box-shadow: 0 0 10px var(--accent-glow); }
 
-        .chip-grid { 
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); 
-            gap: 8px; margin-bottom: 5px; flex-shrink: 0;
+        .top-ctrl {
+            display: flex;
+            gap: 8px;
+            align-items: center;
         }
-        .chip { position: relative; cursor: pointer; }
-        .chip input { position: absolute; opacity: 0; }
+
+        .tool-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: 0.2s;
+        }
+
+        .tool-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .tool-btn.active {
+            background: var(--accent);
+            color: #000;
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .mode-btn {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .mode-btn.active {
+            background: var(--accent);
+            color: #000;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        /* 对照表面板 */
+        #ref-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        #ref-panel.open {
+            max-height: 300px;
+            padding: 10px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            overflow: auto;
+        }
+
+        .ref-table {
+            width: max-content;
+            min-width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.75rem;
+            color: #ccc;
+        }
+
+        .ref-table th {
+            color: var(--accent);
+            text-align: left;
+            padding: 4px;
+            border-bottom: 1px solid #333;
+            background: var(--card-bg);
+            position: sticky;
+            top: 0;
+            z-index: 3;
+        }
+
+        .ref-table td {
+            padding: 4px;
+            border-bottom: 1px solid #222;
+        }
+
+        .ref-table th:first-child,
+        .ref-table td:first-child {
+            position: sticky;
+            left: 0;
+            background: var(--card-bg);
+            z-index: 2;
+        }
+
+        .ref-table thead th:first-child {
+            z-index: 4;
+        }
+
+        .ref-col-hidden {
+            display: none;
+        }
+
+        .ref-highlight {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .chip-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 6px;
+            margin-bottom: 5px;
+            flex-shrink: 0;
+        }
+
+        .chip {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .chip input {
+            position: absolute;
+            opacity: 0;
+        }
+
         .chip-content {
-            display: block; padding: 10px 4px; background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;
-            text-align: center; font-size: 0.8rem; color: #555; transition: 0.3s;
+            display: block;
+            padding: 8px 2px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #555;
+            transition: 0.3s;
         }
-        .chip input:checked + .chip-content { border-color: rgba(255,255,255,0.3); color: #fff; }
+
+        .chip input:checked+.chip-content {
+            border-color: rgba(255, 255, 255, 0.3);
+            color: #aaa;
+        }
 
         .chip.target-highlight .chip-content {
             background: rgba(0, 212, 255, 0.2) !important;
             border-color: var(--accent) !important;
             color: var(--accent) !important;
-            box-shadow: 0 0 15px var(--accent-glow);
-            font-weight: bold; transform: scale(1.03);
+            box-shadow: 0 0 12px var(--accent-glow);
+            font-weight: bold;
+            transform: scale(1.03);
         }
 
-        .select-group { display: flex; gap: 10px; justify-content: center; padding: 5px 0; z-index: 100; }
-        select { 
-            padding: 8px 30px 8px 15px; border-radius: 8px; 
-            background: #2d3436; color: #fff; border: 1px solid rgba(255,255,255,0.2); 
-            font-size: 0.9rem; cursor: pointer;
+        .select-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            padding: 5px 0;
         }
 
-        .question-area { 
-            text-align: center; flex-grow: 1; 
-            display: flex; flex-direction: column; justify-content: center;
-            min-height: 60px;
+        select {
+            padding: 8px 25px 8px 12px;
+            border-radius: 8px;
+            background: #2d3436;
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 0.85rem;
+            cursor: pointer;
         }
-        .feedback { font-size: 0.9rem; height: 1.2rem; margin-bottom: 5px; font-weight: 800; letter-spacing: 2px; }
-        .question-text { font-size: 1.8rem; font-weight: 800; color: #fff; }
 
-        /* --- 修正后的键盘布局 --- */
-        .keyboard-wrapper { 
-            width: 100%; 
-            display: flex;             /* 启用 flex */
-            justify-content: center;    /* 彻底居中 */
-            overflow-x: auto; 
-            padding-top: 5px; 
+        .question-area {
+            text-align: center;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 50px;
+        }
+
+        .feedback {
+            font-size: 0.8rem;
+            height: 1rem;
+            margin-bottom: 3px;
+            font-weight: 800;
+            letter-spacing: 2px;
+        }
+
+        .question-text {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .keyboard-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
+            padding-top: 5px;
             flex-shrink: 0;
         }
-        .piano { 
-            display: flex; 
-            position: relative; 
-            width: fit-content;         /* 宽度自适应内部按键 */
-            background: #000; 
-            padding: 6px; 
+
+        .piano {
+            display: flex;
+            position: relative;
+            width: fit-content;
+            height: calc(var(--white-key-h) + 12px);
+            background: #000;
+            padding: 6px;
             border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
         }
-        /* ------------------------- */
 
         .key {
-            width: var(--white-key-w); height: var(--white-key-h);
-            background: var(--white-key); border: 1px solid #ccc; border-radius: 0 0 5px 5px;
-            cursor: pointer; position: relative; z-index: 1;
+            width: var(--white-key-w);
+            height: var(--white-key-h);
+            background: var(--white-key);
+            border: 1px solid #ccc;
+            border-radius: 0 0 5px 5px;
+            cursor: pointer;
+            position: relative;
+            z-index: 1;
         }
+
         .key.black {
-            width: 30px; height: 90px;
-            background: var(--black-key); margin-left: -15px; 
-            margin-right: -15px; z-index: 2; border: none; border-radius: 0 0 4px 4px;
+            width: 28px;
+            height: 90px;
+            background: var(--black-key);
+            margin-left: -14px;
+            margin-right: -14px;
+            z-index: 2;
+            border: none;
+            border-radius: 0 0 4px 4px;
         }
-        .key.root { background: var(--accent) !important; box-shadow: 0 0 20px var(--accent-glow); }
-        .key.correct { background: var(--correct) !important; }
-        .key.wrong { background: var(--wrong) !important; }
+
+        .key.root {
+            background: var(--accent) !important;
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .key.correct {
+            background: var(--correct) !important;
+        }
+
+        .key.wrong {
+            background: var(--wrong) !important;
+        }
 
         @media (orientation: landscape) and (max-height: 450px) {
-            .container { padding: 10px 15px; }
-            .chip-grid { grid-template-columns: repeat(6, 1fr); gap: 4px; }
-            .question-area { min-height: 40px; }
-            .question-text { font-size: 1.3rem; }
-            .feedback { display: none; }
-            --white-key-h: 110px;
-            --white-key-w: 44px;
-            .key.black { height: 70px; width: 26px; margin-left: -13px; margin-right: -13px; }
+            .container {
+                padding: 5px 15px;
+            }
+
+            .chip-grid {
+                grid-template-columns: repeat(6, 1fr);
+                gap: 4px;
+            }
+
+            .question-area {
+                min-height: 35px;
+            }
+
+            .question-text {
+                font-size: 1.2rem;
+            }
+
+            #ref-panel.open {
+                max-height: 120px;
+            }
+
+            .container {
+                --white-key-h: 100px;
+                --white-key-w: 42px;
+            }
+
+            .key.black {
+                height: 65px;
+                width: 24px;
+                margin-left: -12px;
+                margin-right: -12px;
+            }
         }
+
     </style>
 </head>
+
 <body>
 
     <div id="orientation-overlay">
@@ -159,15 +393,67 @@
 
     <div class="container" id="app-container">
         <header>
-            <h1 onclick="toggleFullScreen()">PIANO FLOW</h1>
+            <h1 onclick="location.reload()">PIANO FLOW</h1>
             <div class="top-ctrl">
-                <button class="fullscreen-btn" onclick="toggleFullScreen()">全屏模式</button>
+                <button class="tool-btn" id="btn-ref" onclick="toggleRef()">📚 助记手册</button>
+                <button class="tool-btn" onclick="location.href='interval_memory.html'">🧠 助记专页</button>
+                <button class="tool-btn" onclick="toggleFullScreen()">⛶ 全屏</button>
                 <div class="mode-selector">
-                    <button class="mode-btn active" id="btn-interval" onclick="switchMainMode('interval')">音程练习</button>
-                    <button class="mode-btn" id="btn-degree" onclick="switchMainMode('degree')">调性级数</button>
+                    <button class="mode-btn active" id="btn-interval" onclick="switchMainMode('interval')">音程</button>
+                    <button class="mode-btn" id="btn-degree" onclick="switchMainMode('degree')">级数</button>
                 </div>
             </div>
         </header>
+
+        <!-- 助记手册面板 -->
+        <div id="ref-panel">
+            <table class="ref-table">
+                <thead>
+                    <tr>
+                        <th>分类</th>
+                        <th data-interval="3">小三度 (m3)</th>
+                        <th data-interval="4">大三度 (M3)</th>
+                        <th data-interval="7">纯五度 (P5)</th>
+                        <th data-interval="8">小六度 (m6)</th>
+                        <th data-interval="9">大六度 (M6)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="ref-highlight">白白</td>
+                        <td data-interval="3">D → F，E → G，A → C，B → D</td>
+                        <td data-interval="4">C → E，F → A，G → B</td>
+                        <td data-interval="7">C → G，D → A，E → B，F → C，G → D，A → E</td>
+                        <td data-interval="8">E → C，A → F，B → G</td>
+                        <td data-interval="9">C → A，D → B，F → D，G → E</td>
+                    </tr>
+                    <tr>
+                        <td class="ref-highlight">白黑</td>
+                        <td data-interval="3">C → Eb，F → Ab，G → Bb</td>
+                        <td data-interval="4">D → F#，E → Ab，A → C#，B → Eb</td>
+                        <td data-interval="7">B → F#</td>
+                        <td data-interval="8">C → Ab，D → Bb，F → C#，G → Eb</td>
+                        <td data-interval="9">E → C#，A → F#，B → Ab</td>
+                    </tr>
+                    <tr>
+                        <td class="ref-highlight">黑白</td>
+                        <td data-interval="3">C# → E，F# → A，Ab → B</td>
+                        <td data-interval="4">C# → F，Eb → G，Ab → C，Bb → D</td>
+                        <td data-interval="7">Bb → F</td>
+                        <td data-interval="8">C# → A，Eb → B，F# → D，Ab → E</td>
+                        <td data-interval="9">Eb → C，Ab → F，Bb → G</td>
+                    </tr>
+                    <tr>
+                        <td class="ref-highlight">黑黑</td>
+                        <td data-interval="3">Eb → F#，Bb → C#</td>
+                        <td data-interval="4">F# → Bb</td>
+                        <td data-interval="7">C# → Ab，Eb → Bb，F# → C#，Ab → Eb</td>
+                        <td data-interval="8">Bb → F#</td>
+                        <td data-interval="9">C# → Bb，F# → Eb</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
 
         <div id="interval-panel">
             <div class="chip-grid" id="interval-grid"></div>
@@ -195,114 +481,138 @@
         </div>
     </div>
 
-<script>
-    const noteNames = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
-    const intervals = [
-        { n: '小二', v: 1 }, { n: '大二', v: 2 }, { n: '小三', v: 3 }, { n: '大三', v: 4 },
-        { n: '纯四', v: 5 }, { n: '三全', v: 6 }, { n: '纯五', v: 7 }, { n: '小六', v: 8 },
-        { n: '大六', v: 9 }, { n: '小七', v: 10 }, { n: '大七', v: 11 }
-    ];
-    const patterns = {
-        major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10],
-        harmonic: [0, 2, 3, 5, 7, 8, 11], melodic: [0, 2, 3, 5, 7, 9, 11]
-    };
+    <script>
+        const noteNames = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+        const intervals = [
+            { n: '小二', v: 1 }, { n: '大二', v: 2 }, { n: '小三', v: 3 }, { n: '大三', v: 4 },
+            { n: '纯四', v: 5 }, { n: '三全', v: 6 }, { n: '纯五', v: 7 }, { n: '小六', v: 8 },
+            { n: '大六', v: 9 }, { n: '小七', v: 10 }, { n: '大七', v: 11 }
+        ];
+        const patterns = {
+            major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10],
+            harmonic: [0, 2, 3, 5, 7, 8, 11], melodic: [0, 2, 3, 5, 7, 9, 11]
+        };
 
-    let currentRoot = -1, currentTarget = -1, isWaiting = false, mainMode = 'interval';
+                    let currentRoot = -1, currentTarget = -1, isWaiting = false, mainMode = 'interval';
 
-    function init() {
-        const grid = document.getElementById('interval-grid');
-        intervals.forEach(item => {
-            const checked = [3, 4, 7].includes(item.v) ? 'checked' : '';
-            grid.innerHTML += `
+                    function updateRefByIntervals(values) {
+                        const allCols = document.querySelectorAll('.ref-table [data-interval]');
+                        allCols.forEach(el => el.classList.remove('ref-col-hidden'));
+                        const allowed = new Set((values || []).map(v => String(v)));
+                        if (!allowed.size) {
+                            allCols.forEach(el => el.classList.add('ref-col-hidden'));
+                            return;
+                        }
+                        allCols.forEach(el => {
+                            if (!allowed.has(el.getAttribute('data-interval'))) el.classList.add('ref-col-hidden');
+                        });
+                    }
+
+                    function init() {
+                        const grid = document.getElementById('interval-grid');
+                        intervals.forEach(item => {
+                            const checked = [3, 4, 7].includes(item.v) ? 'checked' : '';
+                            grid.innerHTML += `
                 <label class="chip" data-v="${item.v}">
                     <input type="checkbox" name="interval" value="${item.v}" data-name="${item.n}" ${checked} onchange="nextQuestion(true)">
                     <span class="chip-content">${item.n}</span>
                 </label>`;
-        });
+                    });
 
-        const piano = document.getElementById('piano-body');
-        for (let i = 0; i < 24; i++) {
-            const isBlack = [1, 3, 6, 8, 10].includes(i % 12);
-            const key = document.createElement('div');
-            key.className = `key ${isBlack ? 'black' : ''}`;
-            const startHandler = (e) => { e.preventDefault(); handlePress(i); };
-            key.addEventListener('mousedown', startHandler);
-            key.addEventListener('touchstart', startHandler);
-            piano.appendChild(key);
-        }
+                    updateRefByIntervals([3, 4, 7]);
 
-        const ks = document.getElementById('keySelect');
-        noteNames.forEach((n, i) => ks.innerHTML += `<option value="${i}">${n} 调</option>`);
-        ks.addEventListener('change', () => nextQuestion(true));
-        document.getElementById('scaleTypeSelect').addEventListener('change', () => nextQuestion(true));
-        
-        nextQuestion();
-    }
+                    const piano = document.getElementById('piano-body');
+                    for (let i = 0; i < 24; i++) {
+                        const isBlack = [1, 3, 6, 8, 10].includes(i % 12);
+                        const key = document.createElement('div');
+                        key.className = `key ${isBlack ? 'black' : ''}`;
+                        const startHandler = (e) => { e.preventDefault(); handlePress(i); };
+                        key.addEventListener('mousedown', startHandler);
+                        key.addEventListener('touchstart', startHandler);
+                        piano.appendChild(key);
+                    }
 
-    function toggleFullScreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(() => {});
-        } else {
-            document.exitFullscreen();
-        }
-    }
+                    const ks = document.getElementById('keySelect');
+                    noteNames.forEach((n, i) => ks.innerHTML += `<option value="${i}">${n} 调</option>`);
+                    ks.addEventListener('change', () => nextQuestion(true));
+                    document.getElementById('scaleTypeSelect').addEventListener('change', () => nextQuestion(true));
 
-    function switchMainMode(mode) {
-        mainMode = mode;
-        document.getElementById('btn-interval').classList.toggle('active', mode === 'interval');
-        document.getElementById('btn-degree').classList.toggle('active', mode === 'degree');
-        document.getElementById('interval-panel').style.display = mode === 'interval' ? 'block' : 'none';
-        document.getElementById('key-panel').style.display = mode === 'degree' ? 'block' : 'none';
-        nextQuestion(true);
-    }
+                    nextQuestion();
+                }
 
-    function nextQuestion(reset = false) {
-        isWaiting = false;
-        const qEl = document.getElementById('question-text');
-        document.getElementById('feedback').innerText = "";
-        document.querySelectorAll('.chip').forEach(c => c.classList.remove('target-highlight'));
+                    function toggleRef() {
+                        const panel = document.getElementById('ref-panel');
+                        const btn = document.getElementById('btn-ref');
+                        panel.classList.toggle('open');
+                        btn.classList.toggle('active');
+                    }
 
-        if (mainMode === 'interval') {
-            const selected = Array.from(document.querySelectorAll('input[name="interval"]:checked'));
-            if (!selected.length) { qEl.innerText = "请至少选一个"; return; }
-            const pick = selected[Math.floor(Math.random() * selected.length)];
-            const v = parseInt(pick.value);
-            currentRoot = Math.floor(Math.random() * 12);
-            currentTarget = currentRoot + v;
-            qEl.innerText = `${noteNames[currentRoot]} 的 ${pick.getAttribute('data-name')}`;
-            document.querySelector(`.chip[data-v="${v}"]`).classList.add('target-highlight');
-        } else {
-            const base = parseInt(document.getElementById('keySelect').value);
-            const st = document.getElementById('scaleTypeSelect');
-            const deg = Math.floor(Math.random() * 7) + 1;
-            currentRoot = base;
-            currentTarget = base + patterns[st.value][deg - 1];
-            qEl.innerText = `${noteNames[base]}${st.options[st.selectedIndex].text} 第 ${deg} 级`;
-        }
-        refreshPiano();
-    }
+                    function toggleFullScreen() {
+                        if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(() => { });
+                    } else {
+                        document.exitFullscreen();
+                    }
+                }
 
-    function refreshPiano(pressedIdx = null, isCorrect = null) {
-        document.querySelectorAll('.key').forEach((key, i) => {
-            if (pressedIdx === null) key.classList.remove('root', 'correct', 'wrong');
-            if (i % 12 === currentRoot % 12) key.classList.add('root');
-            if (i === pressedIdx) key.classList.add(isCorrect ? 'correct' : 'wrong');
-        });
-    }
+                    function switchMainMode(mode) {
+                        mainMode = mode;
+                        document.getElementById('btn-interval').classList.toggle('active', mode === 'interval');
+                        document.getElementById('btn-degree').classList.toggle('active', mode === 'degree');
+                        document.getElementById('interval-panel').style.display = mode === 'interval' ? 'block' : 'none';
+                        document.getElementById('key-panel').style.display = mode === 'degree' ? 'block' : 'none';
+                        nextQuestion(true);
+                    }
 
-    function handlePress(idx) {
-        if (isWaiting) return;
-        const fb = document.getElementById('feedback');
-        if (idx % 12 === currentTarget % 12) {
-            fb.innerText = "EXCELLENT"; fb.style.color = "var(--correct)";
-            refreshPiano(idx, true); isWaiting = true; setTimeout(nextQuestion, 700);
-        } else {
-            fb.innerText = "TRY AGAIN"; fb.style.color = "var(--wrong)";
-            refreshPiano(idx, false);
-        }
-    }
+                    function nextQuestion(reset = false) {
+                        isWaiting = false;
+                        const qEl = document.getElementById('question-text');
+                        document.getElementById('feedback').innerText = "";
+                        document.querySelectorAll('.chip').forEach(c => c.classList.remove('target-highlight'));
 
-    init();
-</script>
+                    if (mainMode === 'interval') {
+                        const selected = Array.from(document.querySelectorAll('input[name="interval"]:checked'));
+                    updateRefByIntervals(selected.map(item => parseInt(item.value)));
+                        if (!selected.length) { qEl.innerText = "请至少选一个"; return; }
+                        const pick = selected[Math.floor(Math.random() * selected.length)];
+                        const v = parseInt(pick.value);
+                        currentRoot = Math.floor(Math.random() * 12);
+                        currentTarget = currentRoot + v;
+                        qEl.innerText = `${noteNames[currentRoot]} 的 ${pick.getAttribute('data-name')}`;
+                        document.querySelector(`.chip[data-v="${v}"]`).classList.add('target-highlight');
+                    } else {
+                        const base = parseInt(document.getElementById('keySelect').value);
+                        const st = document.getElementById('scaleTypeSelect');
+                        const deg = Math.floor(Math.random() * 7) + 1;
+                        currentRoot = base;
+                        currentTarget = base + patterns[st.value][deg - 1];
+                        qEl.innerText = `${noteNames[base]}${st.options[st.selectedIndex].text} 第 ${deg} 级`;
+                    }
+                    refreshPiano();
+                }
+
+                    function refreshPiano(pressedIdx = null, isCorrect = null) {
+                        document.querySelectorAll('.key').forEach((key, i) => {
+                            if (pressedIdx === null) key.classList.remove('root', 'correct', 'wrong');
+                            if (i % 12 === currentRoot % 12) key.classList.add('root');
+                            if (i === pressedIdx) key.classList.add(isCorrect ? 'correct' : 'wrong');
+                        });
+                    }
+
+                    function handlePress(idx) {
+                        if (isWaiting) return;
+                        const fb = document.getElementById('feedback');
+                        if (idx % 12 === currentTarget % 12) {
+                            fb.innerText = "EXCELLENT"; fb.style.color = "var(--correct)";
+                            refreshPiano(idx, true); isWaiting = true; setTimeout(nextQuestion, 700);
+                        } else {
+                            fb.innerText = "TRY AGAIN"; fb.style.color = "var(--wrong)";
+                            refreshPiano(idx, false);
+                        }
+                    }
+
+                    init();
+                </script>
 </body>
+
 </html>
