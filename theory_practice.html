@@ -481,6 +481,7 @@
                 <button class="tool-btn" id="btn-ref" onclick="toggleRef()">📚 助记手册</button>
                 <button class="tool-btn" onclick="location.href='interval_memory.html'">🧠 助记专页</button>
                 <button class="tool-btn" onclick="toggleFullScreen()">⛶ 全屏</button>
+                <button class="tool-btn active" id="btn-root" onclick="toggleRootHighlight()">🎯 根音高亮</button>
                 <div class="mode-selector">
                     <button class="mode-btn active" id="btn-interval" onclick="switchMainMode('interval')">音程</button>
                     <button class="mode-btn" id="btn-degree" onclick="switchMainMode('degree')">级数</button>
@@ -643,7 +644,7 @@
             playPianoNote(targetIndex, 0.22);
         }
 
-        let currentRoot = -1, currentTarget = -1, isWaiting = false, mainMode = 'interval';
+        let currentRoot = -1, currentTarget = -1, isWaiting = false, mainMode = 'interval', showRootHighlight = true;
 
         function updateRefByIntervals(values) {
             const allCols = document.querySelectorAll('.ref-table [data-interval]');
@@ -752,6 +753,12 @@
         }
     }
 
+        function toggleRootHighlight() {
+            showRootHighlight = !showRootHighlight;
+            document.getElementById('btn-root').classList.toggle('active', showRootHighlight);
+            refreshPiano();
+        }
+
         function switchMainMode(mode) {
             mainMode = mode;
             document.getElementById('btn-interval').classList.toggle('active', mode === 'interval');
@@ -790,10 +797,10 @@
         refreshPiano();
     }
 
-        function refreshPiano(pressedIdx = null, isCorrect = null) {
+        function refreshPiano(pressedIdx = null, isCorrect = null, forceRoot = false) {
             document.querySelectorAll('.key').forEach((key, i) => {
                 if (pressedIdx === null) key.classList.remove('root', 'correct', 'wrong');
-                if (i % 12 === currentRoot % 12) key.classList.add('root');
+                if ((showRootHighlight || forceRoot) && i % 12 === currentRoot % 12) key.classList.add('root');
                 if (i === pressedIdx) key.classList.add(isCorrect ? 'correct' : 'wrong');
             });
         }
@@ -805,11 +812,11 @@
                 if (mainMode === 'interval') {
                     playIntervalPair(currentRoot, currentTarget);
                 } else {
-                    const rootForPlayback = currentRoot + (idx >= 12 ? 12 : 0);
+                    const rootForPlayback = currentRoot + 12 * Math.floor((idx - currentRoot) / 12);
                     playIntervalPair(rootForPlayback, idx);
                 }
                 fb.innerText = "EXCELLENT"; fb.style.color = "var(--correct)";
-                refreshPiano(idx, true); isWaiting = true; setTimeout(nextQuestion, 700);
+                refreshPiano(idx, true, mainMode === 'interval'); isWaiting = true; setTimeout(nextQuestion, 700);
             } else {
                 fb.innerText = "TRY AGAIN"; fb.style.color = "var(--wrong)";
                 refreshPiano(idx, false);
