@@ -208,6 +208,89 @@
             font-weight: bold;
         }
 
+        .ref-hidden {
+            display: none;
+        }
+
+        .degree-ref {
+            font-size: 0.78rem;
+            color: #cfd6db;
+        }
+
+        .degree-title {
+            color: var(--accent);
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .degree-notes {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .degree-kbd {
+            display: flex;
+            position: relative;
+            width: fit-content;
+            background: #000;
+            padding: 4px;
+            border-radius: 8px;
+            height: 86px;
+        }
+
+        .degree-key {
+            width: 16px;
+            height: 78px;
+            background: var(--white-key);
+            border: 1px solid #ccd3da;
+            border-radius: 0 0 4px 4px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .degree-key.black {
+            width: 10px;
+            height: 50px;
+            background: var(--black-key);
+            margin-left: -5px;
+            margin-right: -5px;
+            border: none;
+            z-index: 2;
+            border-radius: 0 0 4px 4px;
+        }
+
+        .degree-key.hit {
+            background: rgba(46, 204, 113, 0.95) !important;
+        }
+
+        .degree-key.root {
+            background: var(--accent) !important;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .degree-num {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 6px;
+            font-size: 0.6rem;
+            font-weight: 800;
+            color: #0b1218;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            min-width: 12px;
+            text-align: center;
+            line-height: 1;
+            padding: 2px 3px;
+        }
+
+        .degree-key.black .degree-num {
+            bottom: 4px;
+            font-size: 0.52rem;
+            min-width: 10px;
+            padding: 1px 2px;
+        }
+
         .chip-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
@@ -453,6 +536,11 @@
                     </tr>
                 </tbody>
             </table>
+            <div id="degree-ref" class="degree-ref ref-hidden">
+                <div class="degree-title" id="degree-ref-title"></div>
+                <div class="degree-notes" id="degree-ref-notes"></div>
+                <div id="degree-ref-kbd"></div>
+            </div>
         </div>
 
         <div id="interval-panel">
@@ -570,6 +658,53 @@
             });
         }
 
+        function renderDegreeReference() {
+            const base = parseInt(document.getElementById('keySelect').value || '0');
+            const st = document.getElementById('scaleTypeSelect');
+            const modeName = st.options[st.selectedIndex].text;
+            const scale = patterns[st.value].map(v => (base + v) % 12);
+            const degreeMap = {};
+            scale.forEach((note, idx) => {
+                degreeMap[note] = idx + 1;
+            });
+
+            document.getElementById('degree-ref-title').innerText = `${noteNames[base]}${modeName} 各级音位置`;
+            document.getElementById('degree-ref-notes').innerText = scale.map((n, i) => `${i + 1}级 ${noteNames[n]}`).join('  ·  ');
+
+            const kbdHost = document.getElementById('degree-ref-kbd');
+            const kbd = document.createElement('div');
+            kbd.className = 'degree-kbd';
+            for (let i = 0; i < 24; i++) {
+                const note = i % 12;
+                const key = document.createElement('div');
+                key.className = `degree-key ${[1, 3, 6, 8, 10].includes(note) ? 'black' : ''}`;
+                if (scale.includes(note)) {
+                    key.classList.add('hit');
+                    const num = document.createElement('span');
+                    num.className = 'degree-num';
+                    num.innerText = degreeMap[note];
+                    key.appendChild(num);
+                }
+                if (note === base) key.classList.add('root');
+                kbd.appendChild(key);
+            }
+            kbdHost.innerHTML = '';
+            kbdHost.appendChild(kbd);
+        }
+
+        function syncRefByMode() {
+            const refTable = document.querySelector('.ref-table');
+            const degreeRef = document.getElementById('degree-ref');
+            if (mainMode === 'interval') {
+                refTable.classList.remove('ref-hidden');
+                degreeRef.classList.add('ref-hidden');
+            } else {
+                refTable.classList.add('ref-hidden');
+                degreeRef.classList.remove('ref-hidden');
+                renderDegreeReference();
+            }
+        }
+
         function init() {
             const grid = document.getElementById('interval-grid');
             intervals.forEach(item => {
@@ -635,6 +770,7 @@
         if (mainMode === 'interval') {
             const selected = Array.from(document.querySelectorAll('input[name="interval"]:checked'));
         updateRefByIntervals(selected.map(item => parseInt(item.value)));
+            syncRefByMode();
             if (!selected.length) { qEl.innerText = "请至少选一个"; return; }
             const pick = selected[Math.floor(Math.random() * selected.length)];
             const v = parseInt(pick.value);
@@ -643,6 +779,7 @@
             qEl.innerText = `${noteNames[currentRoot]} 的 ${pick.getAttribute('data-name')}`;
             document.querySelector(`.chip[data-v="${v}"]`).classList.add('target-highlight');
         } else {
+            syncRefByMode();
             const base = parseInt(document.getElementById('keySelect').value);
             const st = document.getElementById('scaleTypeSelect');
             const deg = Math.floor(Math.random() * 7) + 1;
