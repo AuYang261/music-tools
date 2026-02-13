@@ -805,7 +805,8 @@
                 if (mainMode === 'interval') {
                     playIntervalPair(currentRoot, currentTarget);
                 } else {
-                    playPianoNote(idx);
+                    const rootForPlayback = currentRoot + (idx >= 12 ? 12 : 0);
+                    playIntervalPair(rootForPlayback, idx);
                 }
                 fb.innerText = "EXCELLENT"; fb.style.color = "var(--correct)";
                 refreshPiano(idx, true); isWaiting = true; setTimeout(nextQuestion, 700);
