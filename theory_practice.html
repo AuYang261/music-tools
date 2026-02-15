@@ -429,6 +429,34 @@
             background: var(--wrong) !important;
         }
 
+        .key.root::after,
+        .key.correct::after,
+        .key.wrong::after {
+            content: attr(data-note);
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 6px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: #0b1218;
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 8px;
+            padding: 2px 5px;
+            line-height: 1;
+            z-index: 5;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .key.black.root::after,
+        .key.black.correct::after,
+        .key.black.wrong::after {
+            bottom: 4px;
+            font-size: 0.58rem;
+            padding: 1px 3px;
+        }
+
         @media (orientation: landscape) and (max-height: 450px) {
             .container {
                 padding: 5px 15px;
@@ -724,6 +752,7 @@
             const isBlack = [1, 3, 6, 8, 10].includes(i % 12);
             const key = document.createElement('div');
             key.className = `key ${isBlack ? 'black' : ''}`;
+            key.dataset.note = noteNames[i % 12];
             const startHandler = (e) => { e.preventDefault(); handlePress(i); };
             key.addEventListener('mousedown', startHandler);
             key.addEventListener('touchstart', startHandler);
